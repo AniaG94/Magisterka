@@ -1,6 +1,8 @@
 
 import ij.*;
+import static ij.IJ.Roi;
 import ij.gui.GenericDialog;
+import ij.gui.Roi;
 import ij.measure.ResultsTable;
 import ij.plugin.ChannelSplitter;
 import ij.plugin.PlugIn;
@@ -23,7 +25,18 @@ import ij.process.ImageProcessor;
 import ij.process.StackConverter;
 import java.awt.image.ColorModel;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import static javafx.scene.input.KeyCode.V;
 
 
 
@@ -664,7 +677,7 @@ public class My_Bones3 implements PlugIn {
 		// j and k
 		// Threshold t is (j+k)/2.
 		// Images with histograms having extremely unequal peaks or a broad and
-		// Ă„ĹąĂ‚Â¬Ă˘â‚¬Ĺˇat valley are unsuitable for this method.
+		// Ă„ĹąĂ‚Â¬Ă�?â‚¬Ĺˇat valley are unsuitable for this method.
 		double [] iHisto = new double [data.length];
 		int iter =0;
 		int threshold=-1;
@@ -1596,59 +1609,7 @@ public class My_Bones3 implements PlugIn {
 	}
 
 
-	public static int Yen(int [] data ) {
-		// Implements Yen  thresholding method
-		// 1) Yen J.C., Chang F.J., and Chang S. (1995) "A New Criterion 
-		//    for Automatic Multilevel Thresholding" IEEE Trans. on Image 
-		//    Processing, 4(3): 370-378
-		// 2) Sezgin M. and Sankur B. (2004) "Survey over Image Thresholding 
-		//    Techniques and Quantitative Performance Evaluation" Journal of 
-		//    Electronic Imaging, 13(1): 146-165
-		//    http://citeseer.ist.psu.edu/sezgin04survey.html
-		//
-		// M. Emre Celebi
-		// 06.15.2007
-		// Ported to ImageJ plugin by G.Landini from E Celebi's fourier_0.8 routines
-		int threshold;
-		int ih, it;
-		double crit;
-		double max_crit;
-		double [] norm_histo = new double[data.length]; /* normalized histogram */
-		double [] P1 = new double[data.length]; /* cumulative normalized histogram */
-		double [] P1_sq = new double[data.length];
-		double [] P2_sq = new double[data.length];
-
-		int total =0;
-		for (ih = 0; ih < data.length; ih++ )
-			total+=data[ih];
-
-		for (ih = 0; ih < data.length; ih++ )
-			norm_histo[ih] = (double)data[ih]/total;
-
-		P1[0]=norm_histo[0];
-		for (ih = 1; ih < data.length; ih++ )
-			P1[ih]= P1[ih-1] + norm_histo[ih];
-
-		P1_sq[0]=norm_histo[0]*norm_histo[0];
-		for (ih = 1; ih < data.length; ih++ )
-			P1_sq[ih]= P1_sq[ih-1] + norm_histo[ih] * norm_histo[ih];
-
-		P2_sq[data.length - 1] = 0.0;
-		for ( ih = data.length-2; ih >= 0; ih-- )
-			P2_sq[ih] = P2_sq[ih + 1] + norm_histo[ih + 1] * norm_histo[ih + 1];
-
-		/* Find the threshold that maximizes the criterion */
-		threshold = -1;
-		max_crit = Double.MIN_VALUE;
-		for ( it = 0; it < data.length; it++ ) {
-			crit = -1.0 * (( P1_sq[it] * P2_sq[it] )> 0.0? Math.log( P1_sq[it] * P2_sq[it]):0.0) +  2 * ( ( P1[it] * ( 1.0 - P1[it] ) )>0.0? Math.log(  P1[it] * ( 1.0 - P1[it] ) ): 0.0);
-			if ( crit > max_crit ) {
-				max_crit = crit;
-				threshold = it;
-			}
-		}
-		return threshold;
-	}
+	public static int Yen(int [] data ) 
 
 
 }
@@ -1664,12 +1625,82 @@ public class My_Bones3 implements PlugIn {
  * For complexity reasons, the implementation uses a 6-neighbour-
  * hood and not a 27-neighborhood.
  */
- 
+ class Voxel {
 
+    private int x;
+    private int y;
+     private int z;
+
+     Voxel(int x, int y, int z) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+    } 
+ }
 
 class Morfology {
     
-    public ImagePlus exec (ImagePlus imp, String operation, int numberOfIterations ){
+    public Map< Voxel, Integer> getLumiMap(ImagePlus imp){
+        
+        int height = imp.getHeight();
+        int width = imp.getWidth();
+        int depth = imp.getNSlices();
+        int brightness;
+        
+        ImageStack stack = imp.getImageStack();
+        
+      
+        //create HashMap to store birightness value for a x,y,z voxel
+        Map< Voxel, Integer> LumiMap = new HashMap();
+      
+        
+        for (int a =0; a < depth; a++){
+            for (int i =0;  i < height; i++){
+                for (int j =0;  j < width; j++){
+                Voxel voxel = new Voxel(i,j,a);    
+                brightness = (int) Math.round(stack.getVoxel(i, j, a));
+                LumiMap.put(voxel, brightness);                
+                }           
+            }
+        }
+        IJ.showMessage("Brightness is saved in Map");
+        
+        Set<Map.Entry<Voxel, Integer>> entrySet = getLumiMap(imp).entrySet();
+        Iterator<Voxel> itr2 = getLumiMap(imp).keySet().iterator();  
+        
+        //while(itr2.hasNext()){
+            for (int itr =0; itr < 255; itr++){
+                Set<Voxel> voxels = getROIs(itr, entrySet);
+            }
+            
+            //create ROI
+            
+            Roi roi = new Roi();
+            
+            //Execute execMorfology on speficic ROI 
+        //}
+    
+              
+        return LumiMap;  
+        
+    }
+    
+    public Set<Voxel> getROIs(int lumi, Set<Map.Entry<Voxel, Integer>> entrySet){
+        
+        // filter entrySet based on luminescence value
+                   return entrySet.stream()
+                         .filter(entry -> Objects.equals(entry.getValue(), lumi))
+                         .map(Map.Entry::getKey)
+                         .collect(Collectors.toSet());
+               
+
+       }
+    
+    
+        
+    
+    
+    public ImagePlus execMorfology (ImagePlus imp, String operation, int numberOfIterations ){
         ImageProcessor ip = imp.getProcessor();
         
         for (int i =0; i< numberOfIterations; i++){
